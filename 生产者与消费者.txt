@@ -1,0 +1,164 @@
+package wait;
+
+//生产者
+import java.util.LinkedList;
+import java.util.Random;
+
+
+/**
+ * @ClassName: Producer
+ * @Description: 生产者
+ * @author: xiaopan
+ * @date: 2020/04/10
+ */
+public class Producer implements Runnable
+{
+
+    private final LinkedList<Integer> list;
+
+    /**
+     * 缓冲区大小
+     */
+    private final int maxSize;
+
+    public Producer(LinkedList list, int size)
+    {
+        this.list = list;
+        maxSize =size;
+    }
+
+    @Override
+    public void run()
+    {
+        try
+        {
+            while(true)
+            {
+                //模拟耗时1s
+                Thread.sleep(1000);
+                synchronized (list)
+                {
+                    if(list.size()==maxSize)
+                    {
+                        System.out.println("缓冲区已满，正在等待消费者消费..." + System.currentTimeMillis());
+                        list.wait();
+                    }
+                    else
+                    {
+                        list.add(produce());
+                        list.notifyAll();
+                    }
+                }
+
+            }
+        }
+        catch (InterruptedException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    private int produce()
+    {
+        int n = new Random().nextInt(10000);
+        System.out.println("Thread: " + Thread.currentThread().getName() + " produce: " + n);
+        return n;
+    }
+}
+
+
+//消费者
+package wait;
+
+import java.util.Date;
+import java.util.LinkedList;
+
+/**
+ * @ClassName: Consumer
+ * @Description: 消费者
+ * @author: xiaopan
+ * @date: 2020/04/10
+ */
+public class Consumer implements Runnable
+{
+    private final LinkedList<Integer> list;
+
+    public Consumer(LinkedList list)
+    {
+        this.list = list;
+    }
+
+    @Override
+    public  void run()
+    {
+        while (true)
+        {
+            try
+            {
+                synchronized(list)
+                {
+                    //模拟耗时
+                    Thread.sleep(1000);
+                    if(list.isEmpty())
+                    {
+                        System.out.println("缓冲区已空，正在等待生产者生产..." + System.currentTimeMillis() + Thread.currentThread().getName());
+                        list.wait();
+                    }
+                    else
+                    {
+                        consume(list.poll());
+                        list.notifyAll();
+                    }
+                }
+
+            }
+            catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
+        }
+
+    }
+
+    private void consume(Integer n)
+    {
+        System.out.println("Thread:" + Thread.currentThread().getName() + " consume: " + n);
+    }
+}
+
+//测试
+
+package wait;
+
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+
+/**
+ * @ClassName: Main
+ * @Description: 测试
+ * @author: xiaopan
+ * @date: 2020/04/10
+ */
+public class Main
+{
+    public static void main(String[] args)
+    {
+        LinkedList<Integer> list = new LinkedList<>();
+        Producer p = new Producer(list, 10);
+        Consumer c1 = new Consumer(list);
+        Consumer c2 = new Consumer(list);
+
+        Thread producer = new Thread(p);
+        producer.setName("生产者线程");
+        Thread consumer1 = new Thread(c1);
+        consumer1.setName("消费者1");
+        Thread consumer2 = new Thread(c2);
+        consumer2.setName("消费者2");
+
+        producer.start();
+        consumer1.start();
+        consumer2.start();
+
+    }
+}
